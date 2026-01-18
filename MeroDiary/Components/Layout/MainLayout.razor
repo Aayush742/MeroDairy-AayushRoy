@@ -1,0 +1,120 @@
+﻿@inherits LayoutComponentBase
+@inject IDatabaseInitializer DatabaseInitializer
+@inject ILogger<MainLayout> Logger
+@inject Services.Security.IAppLockService AppLockService
+@inject Services.Theme.IThemeService ThemeService
+
+@implements IDisposable
+
+@{
+    var showLock = !AppLockService.State.IsConfigured || AppLockService.State.IsLocked;
+}
+
+<div class="page app-root @_themeCssClass">
+    @if (!showLock)
+    {
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+    }
+
+    <main>
+        <div class="top-row px-4">
+            <button class="btn btn-sm btn-outline-secondary"
+                    @onclick="ToggleTheme"
+                    title="Toggle light/dark theme">
+                @(_themeCssClass == "theme-dark" ? "Light mode" : "Dark mode")
+            </button>
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_dbInitError))
+        {
+            <div class="alert alert-danger m-3" role="alert">
+                <strong>Local database failed to initialize.</strong>
+                <div class="mt-1">@_dbInitError</div>
+            </div>
+        }
+
+        <article class="content px-4">
+            @if (showLock)
+            {
+                <AppLock />
+            }
+            else
+            {
+                @Body
+            }
+        </article>
+    </main>
+</div>
+
+@code
+{
+    private string? _dbInitError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AppLockService.StateChanged += OnLockStateChanged;
+        try
+        {
+            await DatabaseInitializer.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Database initialization error.");
+            _dbInitError = ex.Message;
+        }
+
+        try
+        {
+            // Lock on launch if configured.
+            await AppLockService.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "App lock initialization error.");
+        }
+
+        try
+        {
+            await ThemeService.InitializeAsync();
+            UpdateThemeClass();
+            ThemeService.ThemeChanged += OnThemeChanged;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Theme initialization error.");
+        }
+    }
+
+    private void OnLockStateChanged(object? sender, EventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    private string _themeCssClass = "theme-light";
+
+    private void UpdateThemeClass()
+        => _themeCssClass = ThemeService.CurrentTheme == Services.Theme.AppThemeMode.Dark ? "theme-dark" : "theme-light";
+
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        UpdateThemeClass();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleTheme()
+    {
+        var next = ThemeService.CurrentTheme == Services.Theme.AppThemeMode.Dark
+            ? Services.Theme.AppThemeMode.Light
+            : Services.Theme.AppThemeMode.Dark;
+
+        await ThemeService.SetThemeAsync(next);
+        UpdateThemeClass();
+    }
+
+    public void Dispose()
+    {
+        AppLockService.StateChanged -= OnLockStateChanged;
+        ThemeService.ThemeChanged -= OnThemeChanged;
+    }
+}

@@ -1,0 +1,232 @@
+@page "/entries"
+@implements IDisposable
+@inject JournalEntriesViewModel Vm
+<h1>Journal</h1>
+<p class="text-muted">One entry per day. Entries can be created, edited, and deleted for any date. Stored locally (SQLite).</p>
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Vm.ErrorMessage</div>
+}
+
+<div class="d-flex gap-2 align-items-end mb-3">
+    <div style="min-width: 16rem;">
+        <label class="form-label">Filter by category</label>
+        <InputSelect class="form-select" @bind-Value="Vm.FilterCategoryId">
+            <option value="">All categories</option>
+            @foreach (var cat in Vm.Categories)
+            {
+                <option value="@cat.Id">@cat.Name</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="flex-grow-1"></div>
+    <button class="btn btn-outline-secondary" @onclick="New" disabled="@Vm.IsBusy">New</button>
+    <button class="btn btn-outline-primary" @onclick="Refresh" disabled="@Vm.IsBusy">Refresh</button>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">@((Vm.IsEditing ? "Edit entry" : "New entry"))</h5>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label">Date</label>
+                <InputDate class="form-control" @bind-Value="Vm.EntryDateLocal" disabled="@(!Vm.IsEntryDateEditable || Vm.IsReadOnly)" />
+                @if (Vm.IsEditing)
+                {
+                    <div class="form-text">Date can’t be changed when editing.</div>
+                }
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Category</label>
+                <InputSelect class="form-select" @bind-Value="Vm.SelectedCategoryId" disabled="@(Vm.IsReadOnly || Vm.IsViewMode)">
+                    <option value="@Guid.Empty" disabled>-- Select --</option>
+                    @foreach (var cat in Vm.Categories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </InputSelect>
+                <div class="form-text">Required</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Mood (required)</label>
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted">Primary</label>
+                        <InputSelect class="form-select" @bind-Value="Vm.PrimaryMoodId" disabled="@(Vm.IsReadOnly || Vm.IsViewMode)">
+                            <option value="@Guid.Empty" disabled>-- Select --</option>
+                            @foreach (var mood in Vm.Moods)
+                            {
+                                <option value="@mood.Id">@($"{mood.Category}: {mood.Name}")</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted">Secondary (optional)</label>
+                        <InputSelect class="form-select" @bind-Value="Vm.SecondaryMood1Id" disabled="@(Vm.IsReadOnly || Vm.IsViewMode)">
+                            <option value="">(none)</option>
+                            @foreach (var mood in Vm.Moods)
+                            {
+                                <option value="@mood.Id">@($"{mood.Category}: {mood.Name}")</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted">Secondary (optional)</label>
+                        <InputSelect class="form-select" @bind-Value="Vm.SecondaryMood2Id" disabled="@(Vm.IsReadOnly || Vm.IsViewMode)">
+                            <option value="">(none)</option>
+                            @foreach (var mood in Vm.Moods)
+                            {
+                                <option value="@mood.Id">@($"{mood.Category}: {mood.Name}")</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+                <div class="form-text">Primary is required. Up to two secondary moods; no duplicates.</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Tags</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var tag in Vm.Tags)
+                    {
+                        var selected = Vm.IsTagSelected(tag.Id);
+                        <button type="button"
+                                class="btn btn-sm @(selected ? "btn-primary" : "btn-outline-primary")"
+                                @onclick="() => Vm.ToggleTag(tag.Id)"
+                                disabled="@(Vm.IsBusy || Vm.IsReadOnly || Vm.IsViewMode)">
+                            @tag.Name
+                        </button>
+                    }
+                </div>
+                <div class="form-text">Selected: @Vm.SelectedTagCount</div>
+
+                <div class="d-flex gap-2 mt-2">
+                    <InputText class="form-control" @bind-Value="Vm.NewTagName" placeholder="Add a tag (e.g., Learning)" disabled="@(Vm.IsReadOnly || Vm.IsViewMode)" />
+                    <button class="btn btn-outline-success" @onclick="AddTag" disabled="@(Vm.IsBusy || Vm.IsReadOnly || Vm.IsViewMode)">Add</button>
+                </div>
+            </div>
+            <div class="col-12 col-md-8">
+                <label class="form-label">Title</label>
+                <InputText class="form-control" @bind-Value="Vm.Title" disabled="@(Vm.IsReadOnly || Vm.IsViewMode)" />
+            </div>
+            <div class="col-12">
+                <label class="form-label">Content (Markdown)</label>
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary"
+                            @onclick="ToggleMode"
+                            disabled="@(Vm.IsBusy || Vm.IsReadOnly)">
+                        @(Vm.IsViewMode ? "Edit Mode" : "View Mode")
+                    </button>
+                </div>
+
+                @if (Vm.IsViewMode)
+                {
+                    <div class="border rounded p-3 bg-white" style="min-height: 10rem;">
+                        @((MarkupString)Vm.RenderedContentHtml)
+                    </div>
+                }
+                else
+                {
+                    <InputTextArea class="form-control" @bind-Value="Vm.Content" rows="8" disabled="@(Vm.IsReadOnly)" />
+                }
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button class="btn btn-success" @onclick="Save" disabled="@(!Vm.CanSave)">Save</button>
+                <button class="btn btn-outline-secondary" @onclick="Cancel" disabled="@Vm.IsBusy">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Vm.Entries.Count == 0)
+{
+    <p><em>No entries yet.</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th style="width: 10rem;">Date</th>
+                <th style="width: 14rem;">Category</th>
+                <th>Title</th>
+                <th style="width: 12rem;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var entry in Vm.Entries)
+            {
+                var canEdit = Vm.CanEditOrDelete(entry);
+                <tr>
+                    <td>@entry.EntryDate.ToString("yyyy-MM-dd")</td>
+                    <td>@Vm.GetCategoryName(entry.CategoryId)</td>
+                    <td>@entry.Title</td>
+                    <td class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => Edit(entry)" disabled="@(!canEdit || Vm.IsBusy)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(entry)" disabled="@(!canEdit || Vm.IsBusy)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code
+{
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? DateQuery { get; set; }
+
+    private bool _initialized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        await Vm.InitializeAsync();
+        _initialized = true;
+        await ApplyNavigationAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_initialized)
+            await ApplyNavigationAsync();
+    }
+
+    private async Task ApplyNavigationAsync()
+    {
+        if (string.IsNullOrWhiteSpace(DateQuery))
+        {
+            Vm.StartNew();
+            return;
+        }
+
+        if (DateOnly.TryParse(DateQuery, out var date))
+        {
+            await Vm.OpenForDateAsync(date);
+        }
+        else
+        {
+            Vm.StartNew();
+        }
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+
+    private void New() => Vm.StartNew();
+    private void Cancel() => Vm.StartNew();
+    private Task Refresh() => Vm.RefreshAsync();
+    private Task Save() => Vm.SaveAsync();
+    private Task Edit(JournalEntry entry) => Vm.StartEditAsync(entry);
+    private Task Delete(JournalEntry entry) => Vm.DeleteAsync(entry);
+
+    private void ToggleMode() => Vm.IsViewMode = !Vm.IsViewMode;
+
+    private Task AddTag() => Vm.AddNewTagAsync();
+}
+
+

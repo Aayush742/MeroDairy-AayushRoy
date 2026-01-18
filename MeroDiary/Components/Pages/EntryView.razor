@@ -1,0 +1,63 @@
+@page "/entry/{Id:guid}"
+@implements IDisposable
+@inject EntryViewViewModel Vm
+
+<h1>Entry</h1>
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Vm.ErrorMessage</div>
+}
+
+@if (Vm.Entry is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <div class="mb-3">
+        <div class="text-muted">@Vm.Entry.EntryDate.ToString("yyyy-MM-dd")</div>
+        <h3 class="mt-1">@Vm.Entry.Title</h3>
+        <div class="mt-2">
+            <span class="badge bg-secondary">@Vm.CategoryName</span>
+            <span class="badge bg-info text-dark">@Vm.PrimaryMoodName</span>
+        </div>
+        @if (Vm.TagNames.Count > 0)
+        {
+            <div class="mt-2">
+                @foreach (var t in Vm.TagNames)
+                {
+                    <span class="badge bg-light text-dark border me-1">@t</span>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="border rounded p-3 bg-white">
+        @((MarkupString)Vm.RenderedHtml)
+    </div>
+}
+
+@code
+{
+    [Parameter] public Guid Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        await Vm.LoadAsync(Id);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Vm.LoadAsync(Id);
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+}
+
+

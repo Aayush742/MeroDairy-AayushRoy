@@ -1,0 +1,51 @@
+@page "/settings"
+@implements IDisposable
+@using MeroDiary.Services.Theme
+@inject MeroDiary.ViewModels.ThemeSettingsViewModel Vm
+
+<h1>Settings</h1>
+<p class="text-muted">Customize your app appearance.</p>
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Vm.ErrorMessage</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Theme</h5>
+        <p class="text-muted mb-3">Choose Light or Dark. Your preference is saved and will be used on next launch.</p>
+
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-6">
+                <label class="form-label">Theme mode</label>
+                <InputSelect class="form-select" @bind-Value="Vm.SelectedTheme" disabled="@Vm.IsBusy">
+                    <option value="@AppThemeMode.Light">Light</option>
+                    <option value="@AppThemeMode.Dark">Dark</option>
+                </InputSelect>
+            </div>
+            <div class="col-12 col-md-6 d-flex gap-2">
+                <button class="btn btn-primary" @onclick="Apply" disabled="@Vm.IsBusy">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        await Vm.InitializeAsync();
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+
+    private Task Apply() => Vm.ApplyAsync();
+}
+
+

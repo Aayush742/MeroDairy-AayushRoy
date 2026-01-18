@@ -1,0 +1,126 @@
+/* Centralized theme tokens (no per-component hard-coded colors). */
+
+.theme-light {
+  /* App surfaces */
+  --app-surface: #ffffff;
+  --app-surface-2: #f7f7f7;
+  --app-border: #d6d5d5;
+
+  /* Sidebar */
+  --app-sidebar-gradient-start: rgb(5, 39, 103);
+  --app-sidebar-gradient-end: #3a0647;
+  --app-sidebar-top-row-bg: rgba(0, 0, 0, 0.4);
+  --app-sidebar-link-color: #d7d7d7;
+  --app-sidebar-link-hover-bg: rgba(255, 255, 255, 0.1);
+  --app-sidebar-link-active-bg: rgba(255, 255, 255, 0.37);
+
+  /* Bootstrap overrides (core) */
+  --bs-body-bg: #ffffff;
+  --bs-body-bg-rgb: 255, 255, 255;
+  --bs-body-color: #212529;
+  --bs-body-color-rgb: 33, 37, 41;
+  --bs-border-color: #dee2e6;
+  --bs-secondary-color: #6c757d;
+  --bs-tertiary-bg: #f8f9fa;
+  --bs-card-bg: #ffffff;
+  --bs-card-color: #212529;
+  --app-input-bg: #ffffff;
+  --app-input-color: #212529;
+  --app-input-border: #ced4da;
+  --app-table-stripe: rgba(0, 0, 0, 0.03);
+
+  --bs-link-color: #0d6efd;
+  --bs-link-hover-color: #0a58ca;
+
+  --bs-primary: #0d6efd;
+  --bs-primary-rgb: 13, 110, 253;
+}
+
+.theme-dark {
+  /* App surfaces */
+  --app-surface: #0f1115;
+  --app-surface-2: #141821;
+  --app-border: #2b2f3a;
+
+  /* Sidebar (keep dark but tuned) */
+  --app-sidebar-gradient-start: #081b4a;
+  --app-sidebar-gradient-end: #210326;
+  --app-sidebar-top-row-bg: rgba(0, 0, 0, 0.5);
+  --app-sidebar-link-color: #d7d7d7;
+  --app-sidebar-link-hover-bg: rgba(255, 255, 255, 0.12);
+  --app-sidebar-link-active-bg: rgba(255, 255, 255, 0.28);
+
+  /* Bootstrap overrides (core) */
+  --bs-body-bg: #0f1115;
+  --bs-body-bg-rgb: 15, 17, 21;
+  --bs-body-color: #e8eaf0;
+  --bs-body-color-rgb: 232, 234, 240;
+  --bs-border-color: #2b2f3a;
+  --bs-secondary-color: #a9b0bd;
+  --bs-tertiary-bg: #141821;
+  --bs-card-bg: #141821;
+  --bs-card-color: #e8eaf0;
+  --app-input-bg: #0f1115;
+  --app-input-color: #e8eaf0;
+  --app-input-border: #2b2f3a;
+  --app-table-stripe: rgba(255, 255, 255, 0.04);
+
+  --bs-link-color: #8bb8ff;
+  --bs-link-hover-color: #b0d0ff;
+
+  --bs-primary: #4f8cff;
+  --bs-primary-rgb: 79, 140, 255;
+}
+
+/* Component overrides for Bootstrap builds that still hard-code light colors. */
+.theme-dark .card,
+.theme-dark .dropdown-menu {
+  background-color: var(--bs-card-bg) !important;
+  color: var(--bs-card-color) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.theme-dark .card .text-muted,
+.theme-dark .text-muted {
+  color: var(--bs-secondary-color) !important;
+}
+
+.theme-dark .table {
+  color: var(--bs-body-color) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.theme-dark .table-striped > tbody > tr:nth-of-type(odd) > * {
+  --bs-table-accent-bg: var(--app-table-stripe);
+  color: var(--bs-body-color);
+}
+
+.theme-dark .form-control,
+.theme-dark .form-select,
+.theme-dark textarea,
+.theme-dark input[type="text"],
+.theme-dark input[type="search"],
+.theme-dark input[type="date"] {
+  background-color: var(--app-input-bg) !important;
+  color: var(--app-input-color) !important;
+  border-color: var(--app-input-border) !important;
+}
+
+.theme-dark .form-control::placeholder,
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder {
+  color: rgba(var(--bs-body-color-rgb), 0.55) !important;
+}
+
+.theme-dark .modal-content {
+  background-color: var(--bs-card-bg) !important;
+  color: var(--bs-body-color) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+.theme-dark .btn-outline-secondary {
+  color: var(--bs-body-color) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+
