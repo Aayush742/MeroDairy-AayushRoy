@@ -1,0 +1,146 @@
+@page "/journal"
+@implements IDisposable
+@inject JournalEntriesListViewModel Vm
+@inject NavigationManager Nav
+
+<h1>Journal Entries</h1>
+<p class="text-muted">Reverse chronological order. Select an entry to view details.</p>
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Vm.ErrorMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Search &amp; Filter</h5>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label class="form-label">Search (title or content)</label>
+                <InputText class="form-control" @bind-Value="Vm.SearchText" placeholder="e.g., doctor, trip, gratitude" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">Start date</label>
+                <InputDate class="form-control" @bind-Value="Vm.StartDateLocal" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">End date</label>
+                <InputDate class="form-control" @bind-Value="Vm.EndDateLocal" />
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Category</label>
+                <InputSelect class="form-select" @bind-Value="Vm.CategoryId">
+                    <option value="">All categories</option>
+                    @foreach (var cat in Vm.Categories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Moods (all selected)</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var mood in Vm.Moods)
+                    {
+                        var selected = Vm.IsMoodSelected(mood.Id);
+                        <button type="button"
+                                class="btn btn-sm @(selected ? "btn-primary" : "btn-outline-primary")"
+                                @onclick="() => Vm.ToggleMood(mood.Id)"
+                                disabled="@Vm.IsBusy">
+                            @mood.Name
+                        </button>
+                    }
+                </div>
+                <div class="form-text">Selected: @Vm.SelectedMoodCount</div>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">Tags (all selected)</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var tag in Vm.Tags)
+                    {
+                        var selected = Vm.IsTagSelected(tag.Id);
+                        <button type="button"
+                                class="btn btn-sm @(selected ? "btn-success" : "btn-outline-success")"
+                                @onclick="() => Vm.ToggleTag(tag.Id)"
+                                disabled="@Vm.IsBusy">
+                            @tag.Name
+                        </button>
+                    }
+                </div>
+                <div class="form-text">Selected: @Vm.SelectedTagCount</div>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary" @onclick="Apply" disabled="@Vm.IsBusy">Apply</button>
+                <button class="btn btn-outline-secondary" @onclick="Clear" disabled="@Vm.IsBusy">Clear</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-primary" @onclick="Refresh" disabled="@Vm.IsBusy">Refresh</button>
+    <button class="btn btn-outline-secondary" @onclick="LoadMore" disabled="@(!Vm.HasMore || Vm.IsBusy)">Load more</button>
+    <button class="btn btn-success" @onclick="ExportPdf" disabled="@Vm.IsBusy">Export PDF</button>
+</div>
+
+@if (Vm.Items.Count == 0)
+{
+    <p><em>No entries yet.</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th style="width: 10rem;">Date</th>
+                <th>Title</th>
+                <th style="width: 14rem;">Category</th>
+                <th style="width: 12rem;">Primary mood</th>
+                <th>Tags</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Vm.Items)
+            {
+                <tr style="cursor: pointer;" @onclick="() => Open(item)">
+                    <td>@item.EntryDate.ToString("yyyy-MM-dd")</td>
+                    <td>@item.Title</td>
+                    <td>@item.CategoryName</td>
+                    <td>@item.PrimaryMoodName</td>
+                    <td>@string.Join(", ", item.Tags)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code
+{
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        await Vm.InitializeAsync();
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+
+    private Task Refresh() => Vm.RefreshAsync();
+    private Task LoadMore() => Vm.LoadMoreAsync();
+    private void Open(JournalEntryListItem item) => Vm.OpenEntry(item);
+
+    private Task Apply() => Vm.RefreshAsync();
+    private async Task Clear()
+    {
+        Vm.ClearFilters();
+        await Vm.RefreshAsync();
+    }
+
+    private void ExportPdf()
+        => Nav.NavigateTo(Vm.BuildExportUrl());
+}
+
+

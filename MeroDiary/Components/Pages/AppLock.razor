@@ -1,0 +1,77 @@
+@page "/lock"
+@implements IDisposable
+@inject AppLockViewModel Vm
+
+<div class="container" style="max-width: 520px;">
+    <h1 class="mt-4">Locked</h1>
+    <p class="text-muted">Enter your 4-digit PIN to access the app.</p>
+
+    @if (!string.IsNullOrWhiteSpace(Vm.Message))
+    {
+        <div class="alert alert-warning" role="alert">@Vm.Message</div>
+    }
+
+    @if (!Vm.IsConfigured)
+    {
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Set a 4-digit PIN</h5>
+                <div class="mb-3">
+                    <label class="form-label">PIN</label>
+                    <InputText class="form-control" @bind-Value="Vm.Secret" type="password" />
+                    <div class="form-text">Exactly 4 digits (e.g., 1234).</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirm</label>
+                    <InputText class="form-control" @bind-Value="Vm.ConfirmSecret" type="password" />
+                </div>
+                <button class="btn btn-primary" @onclick="Setup">Save</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Unlock</h5>
+
+                @if (Vm.State.LockedUntilUtc is not null && Vm.State.LockedUntilUtc > DateTimeOffset.UtcNow)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        Too many attempts. Try again at @Vm.State.LockedUntilUtc.Value.ToLocalTime().ToString("HH:mm:ss").
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label">PIN</label>
+                        <InputText class="form-control" @bind-Value="Vm.Secret" type="password" />
+                        <div class="form-text">Remaining attempts: @Vm.State.RemainingAttempts</div>
+                    </div>
+
+                    <button class="btn btn-success" @onclick="Unlock">Unlock</button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code
+{
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        await Vm.InitializeAsync();
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+
+    private Task Setup() => Vm.SetupAsync();
+    private Task Unlock() => Vm.UnlockAsync();
+}
+
+

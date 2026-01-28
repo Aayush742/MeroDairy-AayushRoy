@@ -1,0 +1,82 @@
+@page "/export"
+@implements IDisposable
+@inject PdfExportViewModel Vm
+
+<h1>Export PDF</h1>
+<p class="text-muted">Exports journal entries for a selected date range to a local PDF file.</p>
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Vm.ErrorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Vm.Message))
+{
+    <div class="alert alert-info" role="alert">@Vm.Message</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label">Start date</label>
+                <InputDate class="form-control" @bind-Value="Vm.StartDateLocal" />
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">End date</label>
+                <InputDate class="form-control" @bind-Value="Vm.EndDateLocal" />
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-end gap-2">
+                <button class="btn btn-primary w-50" @onclick="ExportPdf" disabled="@Vm.IsBusy">Export PDF</button>
+                <button class="btn btn-outline-secondary w-50" @onclick="ViewPdf" disabled="@(Vm.IsBusy || string.IsNullOrWhiteSpace(Vm.LastFilePath))">View</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Vm.LastFilePath))
+        {
+            <div class="mt-3">
+                <div class="text-muted">Last export</div>
+                <div><strong>@Vm.LastEntryCount</strong> entries</div>
+                <div class="small"><code>@Vm.LastFilePath</code></div>
+            </div>
+        }
+    </div>
+</div>
+
+@code
+{
+    [SupplyParameterFromQuery(Name = "start")]
+    public string? StartQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "end")]
+    public string? EndQuery { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        ApplyQueryPrefill();
+        await Task.CompletedTask;
+    }
+
+    protected override void OnParametersSet()
+    {
+        ApplyQueryPrefill();
+    }
+
+    private void ApplyQueryPrefill()
+    {
+        DateTime? start = DateTime.TryParse(StartQuery, out var s) ? s : null;
+        DateTime? end = DateTime.TryParse(EndQuery, out var e) ? e : null;
+        Vm.ApplyPrefill(start, end);
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+
+    private Task ExportPdf() => Vm.ExportAsync();
+    private Task ViewPdf() => Vm.ViewLastExportAsync();
+}
+
+

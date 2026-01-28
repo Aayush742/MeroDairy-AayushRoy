@@ -1,0 +1,204 @@
+@page "/"
+@page "/dashboard"
+@implements IDisposable
+@inject DashboardViewModel Vm
+
+<h1>Dashboard</h1>
+<p class="text-muted">Analytics derived from local SQLite data. Use a date range to filter.</p>
+
+@if (!string.IsNullOrWhiteSpace(Vm.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">@Vm.ErrorMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Date Range</h5>
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label">Start</label>
+                <InputDate class="form-control" @bind-Value="Vm.StartDateLocal" />
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">End</label>
+                <InputDate class="form-control" @bind-Value="Vm.EndDateLocal" />
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-end gap-2">
+                <button class="btn btn-primary" @onclick="Refresh" disabled="@Vm.IsBusy">Refresh</button>
+                <button class="btn btn-outline-secondary" @onclick="Clear" disabled="@Vm.IsBusy">Clear</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Vm.Report is null)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    var r = Vm.Report;
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Mood distribution (primary mood)</h5>
+                    @foreach (var p in r.MoodDistribution)
+                    {
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <strong>@p.Category</strong>
+                                <span class="text-muted">@p.Count (@p.Percentage.ToString("0.#")%)</span>
+                            </div>
+                            <div class="progress" style="height: 0.75rem;">
+                                <div class="progress-bar" role="progressbar" style="width: @($"{p.Percentage:0.#}%")"></div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="mt-3">
+                        <h6 class="mb-1">Most frequent mood</h6>
+                        @if (r.MostFrequentMood is null)
+                        {
+                            <span class="text-muted">No data</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-info text-dark">@r.MostFrequentMood.Category</span>
+                            <strong class="ms-2">@r.MostFrequentMood.Name</strong>
+                            <span class="text-muted ms-2">(@r.MostFrequentMood.Count)</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Category breakdown</h5>
+                    @if (r.CategoryBreakdown.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No data</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th style="width: 6rem;">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in r.CategoryBreakdown)
+                                {
+                                    <tr>
+                                        <td>@c.Name</td>
+                                        <td>@c.Count</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Top tags</h5>
+                    @if (r.TopTags.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No data</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Tag</th>
+                                    <th style="width: 6rem;">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in r.TopTags)
+                                {
+                                    <tr>
+                                        <td>@t.Name</td>
+                                        <td>@t.Count</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Word count trend (daily)</h5>
+                    <p class="text-muted">Shows last 14 days in range (0 for days with no entry).</p>
+
+                    @{
+                        var points = r.WordCountTrendDaily;
+                        var tail = points.Count > 14 ? points.Skip(points.Count - 14).ToList() : points.ToList();
+                    }
+
+                    @if (tail.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No data</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th style="width: 8rem;">Words</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in tail)
+                                {
+                                    <tr>
+                                        <td>@p.Date.ToString("yyyy-MM-dd")</td>
+                                        <td>@p.WordCount</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code
+{
+    protected override async Task OnInitializedAsync()
+    {
+        Vm.PropertyChanged += VmOnPropertyChanged;
+        await Vm.InitializeAsync();
+    }
+
+    private void VmOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+        => Vm.PropertyChanged -= VmOnPropertyChanged;
+
+    private Task Refresh() => Vm.RefreshAsync();
+    private async Task Clear()
+    {
+        Vm.ClearDates();
+        await Vm.RefreshAsync();
+    }
+}
+
+
